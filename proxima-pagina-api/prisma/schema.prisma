@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StatusLeitura {
+  QUERO_LER
+  LENDO
+  JA_LI
+}
+
+model Livro {
+  id           String          @id @default(cuid())
+  titulo       String
+  autor        String
+  categoria    String
+  ano          Int?
+  paginas      Int?
+  idioma       String          @default("Português")
+  capaUrl      String?
+  sinopse      String?
+  ehMeuLivro   Boolean         @default(false)
+  criadoEm     DateTime        @default(now())
+  atualizadoEm DateTime        @updatedAt
+  biblioteca   ItemBiblioteca?
+
+  @@index([titulo])
+  @@index([autor])
+  @@index([categoria])
+}
+
+model ItemBiblioteca {
+  id           String        @id @default(cuid())
+  livroId      String        @unique
+  status       StatusLeitura @default(QUERO_LER)
+  avaliacao    Int?
+  criadoEm     DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
+  livro        Livro         @relation(fields: [livroId], references: [id], onDelete: Cascade)
+}

@@ -1,44 +1,78 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import BarraBusca from '../components/BarraBusca'
 import FiltroCategorias from '../components/FiltroCategorias'
 import CardLivro from '../components/CardLivro'
-import { LIVROS_MOCK } from '../mocks/livrosMock'
-import type { Livro } from '../types/livros'
+import {
+  adicionarBiblioteca,
+  listarCategorias,
+  listarLivros,
+  type LivroComBiblioteca,
+} from '../services/api'
 
 export default function Catalogo() {
   const [busca, setBusca] = useState('')
   const [categoriaSelecionada, setCategoriaSelecionada] =
     useState('Todos')
+  const [categorias, setCategorias] = useState<string[]>(['Todos'])
+  const [livros, setLivros] = useState<LivroComBiblioteca[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState('')
+  const [erroCategorias, setErroCategorias] = useState('')
 
-  // Lista de categorias extraída dinamicamente dos livros
-  const categorias: string[] = [
-    'Todos',
-    ...Array.from(
-      new Set(LIVROS_MOCK.map((livro: Livro) => livro.categoria)),
-    ),
-  ]
+  useEffect(() => {
+    let cancelado = false
+    listarCategorias()
+      .then((resultado) => {
+        if (!cancelado) setCategorias(['Todos', ...resultado])
+      })
+      .catch((error: unknown) => {
+        if (!cancelado) setErroCategorias(
+          error instanceof Error ? error.message : 'Não foi possível carregar as categorias.',
+        )
+      })
 
-  // Filtra os livros por título, autor e categoria
-  const livrosFiltrados = LIVROS_MOCK.filter((livro: Livro) => {
-    const buscaLower = busca.toLowerCase().trim()
+    return () => {
+      cancelado = true
+    }
+  }, [])
 
-    const combinaBusca =
-      livro.titulo.toLowerCase().includes(buscaLower) ||
-      livro.autor.toLowerCase().includes(buscaLower)
+  useEffect(() => {
+    let cancelado = false
+    listarLivros({ busca: busca.trim(), categoria: categoriaSelecionada })
+      .then((resultado) => {
+        if (!cancelado) {
+          setLivros(resultado)
+          setErro('')
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelado) {
+          setErro(error instanceof Error ? error.message : 'Não foi possível carregar os livros.')
+        }
+      })
+      .finally(() => {
+        if (!cancelado) setCarregando(false)
+      })
 
-    const combinaCategoria =
-      categoriaSelecionada === 'Todos' ||
-      livro.categoria === categoriaSelecionada
+    return () => {
+      cancelado = true
+    }
+  }, [busca, categoriaSelecionada])
 
-    return combinaBusca && combinaCategoria
-  })
-
-  const handleAdicionarABiblioteca = (id: string) => {
-    console.log(`Livro ${id} adicionado à biblioteca!`)
-
-    // Futuramente: integração com a API REST
+  const handleAdicionarABiblioteca = async (id: string) => {
+    try {
+      const item = await adicionarBiblioteca(id)
+      setLivros((atuais) =>
+        atuais.map((livro) =>
+          livro.id === id ? { ...livro, biblioteca: item } : livro,
+        ),
+      )
+      setErro('')
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : 'Não foi possível adicionar o livro.')
+    }
   }
 
   return (
@@ -46,11 +80,8 @@ export default function Catalogo() {
       <Header />
 
       <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8">
-{/* Título da página */}
 <div className="mb-6">
-  <h1 className="text-lg md:text-xl font-bold text-gray-900">
-    Catálogo
-  </h1>
+  <h1 className="text-lg md:text-xl font-bold text-gray-900">Catálogo</h1>
 </div>
 
         {/* Busca e filtro de categorias */}
@@ -69,13 +100,27 @@ export default function Catalogo() {
         </div>
 
         {/* Grade de livros */}
-        {livrosFiltrados.length > 0 ? (
+        {erro && (
+          <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {erro}
+          </p>
+        )}
+        {erroCategorias && (
+          <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {erroCategorias}
+          </p>
+        )}
+
+        {carregando ? (
+          <p className="py-12 text-center text-gray-500">Carregando livros...</p>
+        ) : livros.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {livrosFiltrados.map((livro: Livro) => (
+            {livros.map((livro) => (
               <CardLivro
                 key={livro.id}
                 livro={livro}
-                onAdicionar={handleAdicionarABiblioteca}
+                onAdicionar={(id) => void handleAdicionarABiblioteca(id)}
+                jaNaBiblioteca={livro.biblioteca !== null}
               />
             ))}
           </div>

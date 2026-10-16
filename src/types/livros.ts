@@ -3,10 +3,10 @@ export interface Livro {
   titulo: string
   autor: string
   categoria: string
-  ano: number
-  paginas: number
+  ano: number | null
+  paginas: number | null
   idioma: string
-  capaUrl: string
-  sinopse: string
-  ehMeuLivro?: boolean 
+  capaUrl: string | null
+  sinopse: string | null
+  ehMeuLivro: boolean
 }

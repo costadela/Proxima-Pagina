@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+!.env.example
+proxima-pagina-api/dist
+proxima-pagina-api/src/generated
 
 # Editor directories and files
 .vscode/*

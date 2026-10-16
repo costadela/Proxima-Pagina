@@ -4,5 +4,5 @@ export interface ItemBiblioteca {
   id: string
   livroId: string
   status: StatusLeitura
-  avaliacao?: number 
+  avaliacao: number | null
 }

@@ -1,23 +1,54 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import SeletorStatus from '../components/SeletorStatus'
 import AvaliacaoEstrelas from '../components/AvaliacaoEstrelas'
+import BuscaCapas from '../components/BuscaCapas'
 import type { StatusLeitura } from '../types/biblioteca'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { criarLivro } from '../services/api'
 
 export default function CadastrarLivro() {
+  const navigate = useNavigate()
   const [titulo, setTitulo] = useState('')
   const [autor, setAutor] = useState('')
   const [categoria, setCategoria] = useState('')
   const [ano, setAno] = useState('')
   const [paginas, setPaginas] = useState('')
+  const [idioma, setIdioma] = useState('Português')
+  const [isbn, setIsbn] = useState('')
   const [capaUrl, setCapaUrl] = useState('')
   const [sinopse, setSinopse] = useState('')
   const [status, setStatus] = useState<StatusLeitura>('QUERO_LER')
   const [avaliacao, setAvaliacao] = useState(0)
+  const [erro, setErro] = useState('')
+  const [salvando, setSalvando] = useState(false)
 
   const sugestoesCategorias = ['Romance', 'Fantasia', 'História', 'Tecnologia']
+
+  const handleSalvar = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSalvando(true)
+    try {
+      const livro = await criarLivro({
+        titulo,
+        autor,
+        categoria,
+        ano: ano ? Number(ano) : null,
+        paginas: paginas ? Number(paginas) : null,
+        idioma,
+        capaUrl: capaUrl.trim() || null,
+        sinopse: sinopse.trim() || null,
+        status,
+        avaliacao: avaliacao || null,
+      })
+      navigate(`/livros/${livro.id}`)
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : 'Não foi possível cadastrar o livro.')
+    } finally {
+      setSalvando(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gray-50">
@@ -34,13 +65,20 @@ export default function CadastrarLivro() {
         <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 shadow-sm">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Cadastrar livro</h1>
 
-          <form className="flex flex-col gap-5">
+          {erro && (
+            <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {erro}
+            </p>
+          )}
+
+          <form onSubmit={(event) => void handleSalvar(event)} className="flex flex-col gap-5">
             {/* Título */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
               <input
                 type="text"
                 placeholder="Ex.: Dom Casmurro"
+                required
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
@@ -53,6 +91,7 @@ export default function CadastrarLivro() {
               <input
                 type="text"
                 placeholder="Nome do autor"
+                required
                 value={autor}
                 onChange={(e) => setAutor(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
@@ -68,8 +107,20 @@ export default function CadastrarLivro() {
                 <input
                   type="text"
                   placeholder="Digite ou escolha uma"
+                  required
                   value={categoria}
                   onChange={(e) => setCategoria(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Idioma</label>
+                <input
+                  type="text"
+                  value={idioma}
+                  onChange={(event) => setIdioma(event.target.value)}
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
                 />
               </div>
@@ -78,6 +129,7 @@ export default function CadastrarLivro() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
                 <input
                   type="number"
+                  min="0"
                   placeholder="1899"
                   value={ano}
                   onChange={(e) => setAno(e.target.value)}
@@ -89,6 +141,7 @@ export default function CadastrarLivro() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Páginas</label>
                 <input
                   type="number"
+                  min="1"
                   placeholder="256"
                   value={paginas}
                   onChange={(e) => setPaginas(e.target.value)}
@@ -112,22 +165,28 @@ export default function CadastrarLivro() {
               ))}
             </div>
 
-            {/* URL da capa */}
+            {/* Busca e URL da capa */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                URL da capa
+              <BuscaCapas
+                titulo={titulo}
+                autor={autor}
+                isbn={isbn}
+                onIsbnChange={setIsbn}
+                onSelecionar={setCapaUrl}
+              />
+              <label htmlFor="capaUrl" className="block text-sm font-medium text-gray-700 mt-4 mb-1">
+                URL da capa selecionada
               </label>
               <input
-                type="text"
+                id="capaUrl"
+                type="url"
                 placeholder="https://"
                 value={capaUrl}
                 onChange={(e) => setCapaUrl(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
               />
               <p className="text-xs text-gray-400 mt-1">
-                Opcional. Cole o link da imagem da capa: no Google Imagens ou no site da editora, clique com o
-botão direito na capa e escolha 'Copiar endereço da imagem'. O link deve terminar em .jpg ou
-.png. Se ele sair do ar, o livro aparece com uma capa genérica e você pode corrigir depois.
+                Opcional. Escolha uma sugestão ou informe o endereço de uma imagem.
               </p>
             </div>
 
@@ -164,15 +223,17 @@ botão direito na capa e escolha 'Copiar endereço da imagem'. O link deve termi
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
               <button
                 type="button"
+                onClick={() => navigate('/minha-biblioteca')}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                disabled={salvando}
+                className="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors"
               >
-                Salvar livro
+                {salvando ? 'Salvando...' : 'Salvar livro'}
               </button>
             </div>
           </form>
