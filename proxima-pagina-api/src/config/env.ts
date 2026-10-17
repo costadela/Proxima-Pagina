@@ -8,7 +8,11 @@ const envSchema = z.object({
   DIRECT_URL: z.string().url('DIRECT_URL deve ser uma URL PostgreSQL válida'),
   GOOGLE_BOOKS_API_KEY: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(3333),
-  FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+  FRONTEND_URL: z.string().url().default(
+    process.env.NODE_ENV === 'production'
+      ? 'https://proximapagina.vitorcostadela.com'
+      : 'http://localhost:5173',
+  ),
   NODE_ENV: z.enum(['development', 'test', 'production']).optional(),
   COOKIE_SECURE: z.enum(['true', 'false'])
     .default('true')

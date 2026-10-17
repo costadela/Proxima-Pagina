@@ -1,7 +1,9 @@
 import type { ItemBiblioteca, StatusLeitura } from '../types/biblioteca'
 import type { Livro } from '../types/livros'
 
-const API_BASE_URL = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3333'}/api`
+const apiOrigin = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') ??
+  (import.meta.env.DEV ? 'http://localhost:3333' : undefined)
+const API_BASE_URL = apiOrigin ? `${apiOrigin}/api` : undefined
 
 export type LivroComBiblioteca = Livro & {
   biblioteca: ItemBiblioteca | null
@@ -46,6 +48,10 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  if (!API_BASE_URL) {
+    throw new Error('A URL da API não foi configurada. Defina VITE_API_URL e publique o frontend novamente.')
+  }
+
   const headers = new Headers(options?.headers)
   if (options?.body) headers.set('Content-Type', 'application/json')
   const response = await fetch(`${API_BASE_URL}${path}`, {

@@ -41,6 +41,25 @@ Requisitos: Node.js, npm e um projeto PostgreSQL no Supabase.
 
 `DATABASE_URL` usa o pooler de transações do Supabase para as requisições da API; `DIRECT_URL` usa o pooler de sessão para migrações. O Prisma 7 deste projeto configura a URL de migração em `prisma.config.ts` (a propriedade `directUrl` no `schema.prisma` pertence ao padrão anterior do Prisma e não é suportada aqui). Mantenha as URLs reais no `.env` ignorado pelo Git e nas variáveis privadas da hospedagem; disponibilize também o CA do Supabase no caminho referenciado por `sslrootcert`.
 
+## Publicar a API Node.js na Hostinger
+
+Na Aplicação Node.js do hPanel, selecione a pasta `proxima-pagina-api` como diretório da aplicação e configure:
+
+| Variável | Valor |
+|---|---|
+| `DATABASE_URL` | URL do pooler de transações do Supabase na porta `6543`, com `sslmode=require` e `sslrootcert=certs/prod-ca-2021.crt` |
+| `DIRECT_URL` | URL do pooler de sessão do Supabase na porta `5432`, com `sslmode=require` e `sslrootcert=certs/prod-ca-2021.crt` |
+| `PORT` | `3333` |
+| `NODE_ENV` | `production` |
+| `FRONTEND_URL` | `https://proximapagina.vitorcostadela.com` |
+| `COOKIE_SECURE` | `true` |
+
+Substitua a senha nos dois URLs do Supabase e aplique URL-encoding se ela contiver caracteres reservados. Não salve credenciais no Git. O certificado público do Supabase deve estar implantado em `proxima-pagina-api/certs/prod-ca-2021.crt`; `sslrootcert` permite validar o certificado TLS do banco.
+
+Use `npm install` para instalar dependências, `npm run build` como comando de build e `npm start` como comando de inicialização. O TypeScript compila para `proxima-pagina-api/dist/`, e o entrypoint de produção é `dist/server.js`. O servidor escuta `process.env.PORT` (com padrão `3333`). A rota `GET /health` responde HTTP 200 com `{"status":"ok"}`.
+
+Depois que a API estiver ativa, defina `VITE_API_URL` no ambiente de build do frontend com a URL HTTPS pública da aplicação Node da Hostinger, sem `/api` e sem barra final. Gere e publique novamente o frontend para que ele passe a chamar essa API.
+
 ## Regras do domínio
 
 - O catálogo inicial é carregado de `proxima-pagina-api/src/data/catalogoInicial.ts`; as capas das 60 obras estão mapeadas em `proxima-pagina-api/src/data/capasCatalogo.ts` e são servidas pela Open Library Covers API.

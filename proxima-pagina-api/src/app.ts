@@ -8,7 +8,14 @@ import autenticacaoRoutes from './routes/autenticacao'
 
 export const app = express()
 
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }))
+const allowedOrigins = [
+  env.FRONTEND_URL,
+  ...(env.NODE_ENV === 'production'
+    ? ['https://proximapagina.vitorcostadela.com']
+    : []),
+]
+
+app.use(cors({ origin: allowedOrigins, credentials: true }))
 app.use(express.json())
 
 app.get('/health', (_request, response) => {
