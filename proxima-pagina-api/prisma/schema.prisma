@@ -7,28 +7,22 @@ datasource db {
   provider = "postgresql"
 }
 
-enum StatusLeitura {
-  QUERO_LER
-  LENDO
-  JA_LI
-}
-
 model Livro {
-  id           String          @id @default(cuid())
+  id           String           @id @default(cuid())
   titulo       String
   autor        String
   categoria    String
   ano          Int?
   paginas      Int?
-  idioma       String          @default("Português")
+  idioma       String           @default("Português")
   capaUrl      String?
   sinopse      String?
-  ehMeuLivro   Boolean         @default(false)
+  ehMeuLivro   Boolean          @default(false)
+  criadoEm     DateTime         @default(now())
+  atualizadoEm DateTime         @updatedAt
   usuarioId    String?
-  criadoEm     DateTime        @default(now())
-  atualizadoEm DateTime        @updatedAt
-  usuario      Usuario?        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   biblioteca   ItemBiblioteca[]
+  usuario      Usuario?         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
   @@index([titulo])
@@ -38,38 +32,44 @@ model Livro {
 
 model ItemBiblioteca {
   id           String        @id @default(cuid())
-  usuarioId    String
   livroId      String
   status       StatusLeitura @default(QUERO_LER)
   avaliacao    Int?
   criadoEm     DateTime      @default(now())
   atualizadoEm DateTime      @updatedAt
-  usuario      Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuarioId    String
   livro        Livro         @relation(fields: [livroId], references: [id], onDelete: Cascade)
+  usuario      Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@unique([usuarioId, livroId])
   @@index([usuarioId, atualizadoEm])
 }
 
 model Usuario {
-  id           String          @id @default(cuid())
-  nome         String
-  email        String          @unique
-  senhaHash    String
-  criadoEm     DateTime        @default(now())
-  livros       Livro[]
-  biblioteca   ItemBiblioteca[]
-  sessoes      Sessao[]
+  id         String           @id @default(cuid())
+  email      String           @unique
+  senhaHash  String
+  criadoEm   DateTime         @default(now())
+  nome       String
+  biblioteca ItemBiblioteca[]
+  livros     Livro[]
+  sessoes    Sessao[]
 }
 
 model Sessao {
-  id           String   @id @default(cuid())
-  tokenHash    String   @unique
-  usuarioId    String
-  expiraEm     DateTime
-  criadoEm     DateTime @default(now())
-  usuario      Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  usuarioId String
+  expiraEm  DateTime
+  criadoEm  DateTime @default(now())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
   @@index([expiraEm])
+}
+
+enum StatusLeitura {
+  QUERO_LER
+  LENDO
+  JA_LI
 }
