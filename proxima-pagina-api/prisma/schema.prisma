@@ -24,10 +24,13 @@ model Livro {
   capaUrl      String?
   sinopse      String?
   ehMeuLivro   Boolean         @default(false)
+  usuarioId    String?
   criadoEm     DateTime        @default(now())
   atualizadoEm DateTime        @updatedAt
-  biblioteca   ItemBiblioteca?
+  usuario      Usuario?        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  biblioteca   ItemBiblioteca[]
 
+  @@index([usuarioId])
   @@index([titulo])
   @@index([autor])
   @@index([categoria])
@@ -35,10 +38,38 @@ model Livro {
 
 model ItemBiblioteca {
   id           String        @id @default(cuid())
-  livroId      String        @unique
+  usuarioId    String
+  livroId      String
   status       StatusLeitura @default(QUERO_LER)
   avaliacao    Int?
   criadoEm     DateTime      @default(now())
   atualizadoEm DateTime      @updatedAt
+  usuario      Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   livro        Livro         @relation(fields: [livroId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, livroId])
+  @@index([usuarioId, atualizadoEm])
+}
+
+model Usuario {
+  id           String          @id @default(cuid())
+  nome         String
+  email        String          @unique
+  senhaHash    String
+  criadoEm     DateTime        @default(now())
+  livros       Livro[]
+  biblioteca   ItemBiblioteca[]
+  sessoes      Sessao[]
+}
+
+model Sessao {
+  id           String   @id @default(cuid())
+  tokenHash    String   @unique
+  usuarioId    String
+  expiraEm     DateTime
+  criadoEm     DateTime @default(now())
+  usuario      Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([expiraEm])
 }

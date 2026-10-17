@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import BarraBusca from '../components/BarraBusca'
@@ -10,8 +11,12 @@ import {
   listarLivros,
   type LivroComBiblioteca,
 } from '../services/api'
+import { useAutenticacao } from '../contexts/useAutenticacao'
 
 export default function Catalogo() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { usuario } = useAutenticacao()
   const [busca, setBusca] = useState('')
   const [categoriaSelecionada, setCategoriaSelecionada] =
     useState('Todos')
@@ -59,9 +64,13 @@ export default function Catalogo() {
     return () => {
       cancelado = true
     }
-  }, [busca, categoriaSelecionada])
+  }, [busca, categoriaSelecionada, usuario?.id])
 
   const handleAdicionarABiblioteca = async (id: string) => {
+    if (!usuario) {
+      navigate('/login', { state: { from: location } })
+      return
+    }
     try {
       const item = await adicionarBiblioteca(id)
       setLivros((atuais) =>

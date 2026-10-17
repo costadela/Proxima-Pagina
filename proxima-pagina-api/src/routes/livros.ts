@@ -4,6 +4,11 @@ import { env } from '../config/env'
 import { prisma } from '../config/prisma'
 import { HttpError } from '../errors/HttpError'
 import {
+  autenticacaoOpcional,
+  exigirAutenticacao,
+  usuarioIdAutenticado,
+} from '../middlewares/autenticacao'
+import {
   atualizarLivroSchema,
   buscaCapasSchema,
   criarLivroSchema,
@@ -11,6 +16,14 @@ import {
 } from '../schemas/livroSchema'
 
 const router = Router()
+router.use(autenticacaoOpcional)
+
+function livroComBibliotecaDoUsuario<
+  T extends { biblioteca: { id: string }[] },
+>(livro: T) {
+  const { biblioteca, ...dados } = livro
+  return { ...dados, biblioteca: biblioteca[0] ?? null }
+}
 
 const googleBooksResponseSchema = z.object({
   items: z.array(z.object({
@@ -122,30 +135,44 @@ router.get('/', async (request, response) => {
           }
         : {}),
     },
-    include: { biblioteca: true },
+    include: {
+      biblioteca: {
+        where: { usuarioId: request.usuarioId ?? '' },
+      },
+    },
     orderBy: { titulo: 'asc' },
   })
 
-  response.json(livros)
+  response.json(livros.map(livroComBibliotecaDoUsuario))
 })
 
 router.get('/:id', async (request, response) => {
-  const livro = await prisma.livro.findUnique({
-    where: { id: request.params.id },
-    include: { biblioteca: true },
+  const livro = await prisma.livro.findFirst({
+    where: {
+      id: request.params.id,
+      OR: [
+        { ehMeuLivro: false },
+        ...(request.usuarioId ? [{ usuarioId: request.usuarioId }] : []),
+      ],
+    },
+    include: {
+      biblioteca: { where: { usuarioId: request.usuarioId ?? '' } },
+    },
   })
 
   if (!livro) throw new HttpError(404, 'Livro não encontrado')
-  response.json(livro)
+  response.json(livroComBibliotecaDoUsuario(livro))
 })
 
-router.post('/', async (request, response) => {
+router.post('/', exigirAutenticacao, async (request, response) => {
+  const usuarioId = usuarioIdAutenticado(request)
   const dados = criarLivroSchema.parse(request.body)
   const { status, avaliacao, ...livro } = dados
   const criado = await prisma.$transaction(async (transaction) => {
     const cadastroExistente = await transaction.livro.findFirst({
       where: {
         ehMeuLivro: true,
+        usuarioId,
         titulo: { equals: livro.titulo, mode: 'insensitive' },
         autor: { equals: livro.autor, mode: 'insensitive' },
       },
@@ -165,48 +192,58 @@ router.post('/', async (request, response) => {
       select: { id: true },
     })
 
-    await transaction.itemBiblioteca.deleteMany({
-      where: { livroId: { in: livrosDoCatalogo.map(({ id }) => id) } },
-    })
+    if (livrosDoCatalogo.length > 0) {
+      await transaction.itemBiblioteca.deleteMany({
+        where: {
+          usuarioId,
+          livroId: { in: livrosDoCatalogo.map(({ id }) => id) },
+        },
+      })
+    }
 
     return transaction.livro.create({
       data: {
         ...livro,
         ehMeuLivro: true,
-        biblioteca: { create: { status, avaliacao: avaliacao ?? null } },
+        usuarioId,
+        biblioteca: { create: { usuarioId, status, avaliacao: avaliacao ?? null } },
       },
       include: { biblioteca: true },
     })
   })
 
-  response.status(201).json(criado)
+  response.status(201).json(livroComBibliotecaDoUsuario(criado))
 })
 
-router.patch('/:id', async (request, response) => {
+router.patch('/:id', exigirAutenticacao, async (request, response) => {
+  const usuarioId = usuarioIdAutenticado(request)
+  const livroId = request.params.id
+  if (typeof livroId !== 'string') throw new HttpError(404, 'Livro não encontrado')
   const dados = atualizarLivroSchema.parse(request.body)
-  const livro = await prisma.livro.findUnique({ where: { id: request.params.id } })
+  const livro = await prisma.livro.findFirst({
+    where: { id: livroId, ehMeuLivro: true, usuarioId },
+  })
 
   if (!livro) throw new HttpError(404, 'Livro não encontrado')
-  if (!livro.ehMeuLivro) {
-    throw new HttpError(403, 'Livros do catálogo não podem ser editados')
-  }
 
   const atualizado = await prisma.livro.update({
     where: { id: livro.id },
     data: dados,
-    include: { biblioteca: true },
+    include: { biblioteca: { where: { usuarioId } } },
   })
 
-  response.json(atualizado)
+  response.json(livroComBibliotecaDoUsuario(atualizado))
 })
 
-router.delete('/:id', async (request, response) => {
-  const livro = await prisma.livro.findUnique({ where: { id: request.params.id } })
+router.delete('/:id', exigirAutenticacao, async (request, response) => {
+  const usuarioId = usuarioIdAutenticado(request)
+  const livroId = request.params.id
+  if (typeof livroId !== 'string') throw new HttpError(404, 'Livro não encontrado')
+  const livro = await prisma.livro.findFirst({
+    where: { id: livroId, ehMeuLivro: true, usuarioId },
+  })
 
   if (!livro) throw new HttpError(404, 'Livro não encontrado')
-  if (!livro.ehMeuLivro) {
-    throw new HttpError(403, 'Livros do catálogo não podem ser excluídos')
-  }
 
   await prisma.livro.delete({ where: { id: livro.id } })
   response.status(204).end()

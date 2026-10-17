@@ -22,44 +22,6 @@ proxima-pagina-api/
     scripts/        Seed do banco
 ```
 
-## Executar localmente
-
-Requisitos: Node.js, npm e Docker com Docker Compose (ou uma instância PostgreSQL própria).
-
-1. Inicie o PostgreSQL local:
-
-   ```sh
-   docker compose up -d
-   ```
-
-2. Configure a API e crie o banco:
-
-   ```sh
-   cp proxima-pagina-api/.env.example proxima-pagina-api/.env
-   cd proxima-pagina-api
-   npm install
-   npm run db:generate
-   npm run db:migrate -- --name inicial
-   npm run db:seed
-   ```
-
-   Se já tiver PostgreSQL, ajuste `DATABASE_URL` em `proxima-pagina-api/.env`.
-
-3. Em um terminal, na raiz do projeto, inicie o frontend:
-
-   ```sh
-   npm install
-   npm run dev
-   ```
-
-4. Em outro terminal, na raiz do projeto, inicie a API:
-
-   ```sh
-   npm run dev:api
-   ```
-
-   A API fica em `http://localhost:3333`; `GET /health` verifica se está ativa.
-
 ## Regras do domínio
 
 - O catálogo inicial é carregado de `proxima-pagina-api/src/data/catalogoInicial.ts`; as capas das 60 obras estão mapeadas em `proxima-pagina-api/src/data/capasCatalogo.ts` e são servidas pela Open Library Covers API.
@@ -68,22 +30,29 @@ Requisitos: Node.js, npm e Docker com Docker Compose (ou uma instância PostgreS
 - A busca do Google Books usa `GOOGLE_BOOKS_API_KEY` opcional na configuração privada da API; se a cota pública estiver indisponível, a URL da capa pode ser informada manualmente.
 - Livros do catálogo podem ser adicionados/removidos da biblioteca e ter status/avaliação alterados; seus dados não podem ser editados ou excluídos.
 - Um livro cadastrado pelo usuário já entra na biblioteca e pode ser editado ou excluído. Ao excluí-lo, o item da biblioteca também é removido.
-- Esta versão é de usuário único e ainda não implementa autenticação. A tabela da biblioteca representa a coleção local da aplicação, não coleções isoladas por conta.
+- A Home e o catálogo são públicos. Para acessar a biblioteca, salvar livros ou cadastrar livros próprios, é necessário criar uma conta ou entrar.
+- Cada conta tem uma biblioteca isolada. Os livros do catálogo são compartilhados; livros pessoais e sessões são associados à conta. Senhas são armazenadas com hash e a sessão usa cookie `HttpOnly` com validade de sete dias. A senha deve ter pelo menos oito caracteres.
+- O cookie de sessão inclui `Secure` por padrão. Para desenvolvimento local com HTTP, `COOKIE_SECURE=false` pode ser usado no `.env`; a API rejeita esse valor quando `NODE_ENV=production`. Em produção, sirva o site e a API exclusivamente por HTTPS.
+- A migração de autenticação remove os itens antigos da biblioteca e os livros pessoais que não tinham proprietário; o catálogo compartilhado é preservado.
 
 ## Rotas principais
 
-| Método | Rota | Ação |
-|---|---|---|
-| GET | `/api/livros?busca=&categoria=` | Buscar no catálogo |
-| GET | `/api/livros/capas?isbn=&titulo=&autor=` | Buscar sugestões de capas no Google Books |
-| GET | `/api/livros/categorias` | Listar categorias do catálogo |
-| GET | `/api/livros/:id` | Ver detalhes de um livro |
-| POST | `/api/livros` | Cadastrar livro próprio e adicioná-lo à biblioteca |
-| PATCH | `/api/livros/:id` | Editar dados de um livro próprio |
-| DELETE | `/api/livros/:id` | Excluir um livro próprio |
-| GET | `/api/biblioteca` | Listar a biblioteca |
-| POST | `/api/biblioteca` | Adicionar um livro do catálogo |
-| PATCH | `/api/biblioteca/:livroId` | Alterar status ou avaliação |
-| DELETE | `/api/biblioteca/:livroId` | Remover um livro do catálogo da biblioteca |
+| Método | Rota | Acesso | Ação |
+|---|---|---|---|
+| POST | `/api/auth/cadastro` | Público | Criar conta com nome, e-mail e senha |
+| POST | `/api/auth/login` | Público | Iniciar sessão |
+| GET | `/api/auth/me` | Público | Consultar a conta da sessão atual |
+| POST | `/api/auth/logout` | Público | Encerrar sessão |
+| GET | `/api/livros?busca=&categoria=` | Público | Buscar no catálogo e indicar os livros salvos pela conta atual |
+| GET | `/api/livros/capas?isbn=&titulo=&autor=` | Público | Buscar sugestões de capas no Google Books |
+| GET | `/api/livros/categorias` | Público | Listar categorias do catálogo |
+| GET | `/api/livros/:id` | Público/Proprietário | Ver detalhes de um livro público ou próprio |
+| POST | `/api/livros` | Conta | Cadastrar livro próprio e adicioná-lo à biblioteca |
+| PATCH | `/api/livros/:id` | Proprietário | Editar dados de um livro próprio |
+| DELETE | `/api/livros/:id` | Proprietário | Excluir um livro próprio |
+| GET | `/api/biblioteca` | Conta | Listar a biblioteca da conta atual |
+| POST | `/api/biblioteca` | Conta | Adicionar um livro do catálogo |
+| PATCH | `/api/biblioteca/:livroId` | Conta | Alterar o status ou a avaliação da própria biblioteca |
+| DELETE | `/api/biblioteca/:livroId` | Conta | Remover um livro do catálogo da própria biblioteca |
 
 As entradas e respostas usam os campos em português definidos no modelo, como `titulo`, `autor`, `categoria`, `idioma`, `status` e `avaliacao`.

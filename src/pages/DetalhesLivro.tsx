@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import SeletorStatus from '../components/SeletorStatus'
 import AvaliacaoEstrelas from '../components/AvaliacaoEstrelas'
 import CapaLivro from '../components/CapaLivro'
 import type { StatusLeitura } from '../types/biblioteca'
+import { useAutenticacao } from '../contexts/useAutenticacao'
 import {
   atualizarItemBiblioteca,
   buscarLivro,
@@ -18,6 +19,8 @@ import {
 export default function DetalhesLivro() {
   const { id = '' } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { usuario } = useAutenticacao()
   const [livro, setLivro] = useState<LivroComBiblioteca | null>(null)
   const [status, setStatus] = useState<StatusLeitura>('QUERO_LER')
   const [avaliacao, setAvaliacao] = useState(0)
@@ -66,6 +69,10 @@ export default function DetalhesLivro() {
 
   const adicionar = async () => {
     if (!livro) return
+    if (!usuario) {
+      navigate('/login', { state: { from: location } })
+      return
+    }
     setSalvando(true)
     try {
       const item = await adicionarBiblioteca(livro.id)

@@ -29,6 +29,12 @@ export interface SugestaoCapa {
   capaUrl: string
 }
 
+export interface Usuario {
+  id: string
+  nome: string
+  email: string
+}
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -45,6 +51,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   })
 
   if (response.status === 204) return undefined as T
@@ -60,6 +67,28 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   return body as T
+}
+
+export function obterUsuarioAtual() {
+  return request<{ usuario: Usuario | null }>('/auth/me')
+}
+
+export function cadastrarUsuario(dados: { nome: string; email: string; senha: string }) {
+  return request<{ usuario: Usuario }>('/auth/cadastro', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function entrar(dados: { email: string; senha: string }) {
+  return request<{ usuario: Usuario }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function sair() {
+  return request<void>('/auth/logout', { method: 'POST' })
 }
 
 export function listarLivros(filtros: { busca?: string; categoria?: string } = {}) {

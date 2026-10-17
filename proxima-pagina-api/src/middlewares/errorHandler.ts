@@ -22,7 +22,15 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, _ne
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-    response.status(409).json({ erro: 'Este livro já está na sua biblioteca' })
+    const target = error.meta?.target
+    const duplicadoEmail = Array.isArray(target)
+      ? target.includes('email')
+      : typeof target === 'string' && target.includes('email')
+    response.status(409).json({
+      erro: duplicadoEmail
+        ? 'Já existe uma conta com este e-mail'
+        : 'Este livro já está na sua biblioteca',
+    })
     return
   }
 
