@@ -8,7 +8,30 @@ import autenticacaoRoutes from './routes/autenticacao'
 
 export const app = express()
 
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }))
+const isLocalDevelopmentOrigin = (origin: string) => {
+  try {
+    const url = new URL(origin)
+    return url.origin === origin &&
+      url.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  } catch {
+    return false
+  }
+}
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, env.FRONTEND_URL)
+      return
+    }
+
+    const isAllowed = origin === env.FRONTEND_URL ||
+      (env.NODE_ENV !== 'production' && isLocalDevelopmentOrigin(origin))
+    callback(null, isAllowed ? origin : false)
+  },
+  credentials: true,
+}))
 app.use(express.json())
 
 app.get('/health', (_request, response) => {
