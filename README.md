@@ -22,6 +22,25 @@ proxima-pagina-api/
     scripts/        Seed do banco
 ```
 
+## Executar localmente com Supabase
+
+Requisitos: Node.js, npm e um projeto PostgreSQL no Supabase.
+
+1. Copie `proxima-pagina-api/.env.example` para `proxima-pagina-api/.env` e substitua `[SUA-SENHA]` nos dois URLs pela senha do banco Supabase. Se a senha contiver caracteres reservados em URLs, aplique URL-encoding. O certificado CA em `proxima-pagina-api/certs/prod-ca-2021.crt` é usado para validar a identidade do servidor TLS; mantenha `sslmode=verify-full`.
+2. Instale dependências e prepare o banco:
+
+   ```sh
+   cd proxima-pagina-api
+   npm install
+   npm run db:generate
+   npx prisma migrate deploy
+   npm run db:seed
+   ```
+
+3. Na raiz do projeto, inicie o frontend com `npm run dev` e a API com `npm run dev:api`.
+
+`DATABASE_URL` usa o pooler de transações do Supabase para as requisições da API; `DIRECT_URL` usa o pooler de sessão para migrações. O Prisma 7 deste projeto configura a URL de migração em `prisma.config.ts` (a propriedade `directUrl` no `schema.prisma` pertence ao padrão anterior do Prisma e não é suportada aqui). Mantenha as URLs reais no `.env` ignorado pelo Git e nas variáveis privadas da hospedagem; disponibilize também o CA do Supabase no caminho referenciado por `sslrootcert`.
+
 ## Regras do domínio
 
 - O catálogo inicial é carregado de `proxima-pagina-api/src/data/catalogoInicial.ts`; as capas das 60 obras estão mapeadas em `proxima-pagina-api/src/data/capasCatalogo.ts` e são servidas pela Open Library Covers API.
@@ -33,6 +52,7 @@ proxima-pagina-api/
 - A Home e o catálogo são públicos. Para acessar a biblioteca, salvar livros ou cadastrar livros próprios, é necessário criar uma conta ou entrar.
 - Cada conta tem uma biblioteca isolada. Os livros do catálogo são compartilhados; livros pessoais e sessões são associados à conta. Senhas são armazenadas com hash e a sessão usa cookie `HttpOnly` com validade de sete dias. A senha deve ter pelo menos oito caracteres.
 - O cookie de sessão inclui `Secure` por padrão. Para desenvolvimento local com HTTP, `COOKIE_SECURE=false` pode ser usado no `.env`; a API rejeita esse valor quando `NODE_ENV=production`. Em produção, sirva o site e a API exclusivamente por HTTPS.
+- A API usa o PostgreSQL do Supabase: `DATABASE_URL` para o pooler de transações e `DIRECT_URL` para migrações do Prisma.
 - A migração de autenticação remove os itens antigos da biblioteca e os livros pessoais que não tinham proprietário; o catálogo compartilhado é preservado.
 
 ## Rotas principais

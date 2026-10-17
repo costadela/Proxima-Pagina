@@ -4,7 +4,8 @@ import { z } from 'zod'
 dotenv.config()
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatória'),
+  DATABASE_URL: z.string().url('DATABASE_URL deve ser uma URL PostgreSQL válida'),
+  DIRECT_URL: z.string().url('DIRECT_URL deve ser uma URL PostgreSQL válida'),
   GOOGLE_BOOKS_API_KEY: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(3333),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
